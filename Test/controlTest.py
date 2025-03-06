@@ -38,7 +38,11 @@ STAB_MODE_ROLL = STAB_MODE_ANGLE
 STAB_MODE_PITCH = STAB_MODE_ANGLE
 STAB_MODE_YAW = STAB_MODE_RATE
 
-THRUST_INCREMENT = 200
+MAX_THRUST = 60000
+MIN_THRUST = 0
+THRUST_INCREMENT = 1000
+
+YAW_RATE = 75
 
 URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
@@ -46,18 +50,36 @@ def paramCallback(param, value):
     print(f"Param {param} has a default value of {value}")
 
 thrust = 0
+yaw_rate = 0
 
 def increment_thrust(e):
     global thrust
-    thrust += THRUST_INCREMENT
+    thrust = min(MAX_THRUST, thrust + THRUST_INCREMENT)
 
 def decrement_thrust(e):
     global thrust
-    thrust -= THRUST_INCREMENT
+    thrust = max(MIN_THRUST, thrust - THRUST_INCREMENT)
+
+def yaw_right(e):
+    global yaw_rate
+    yaw_rate = YAW_RATE
+
+def yaw_left(e):
+    global yaw_rate
+    yaw_rate = -YAW_RATE
+
+def yaw_neutral(e):
+    global yaw_rate
+    yaw_rate = 0
 
 if __name__ == '__main__':
     keyboard.on_press_key('w', increment_thrust)
     keyboard.on_press_key('s', decrement_thrust)
+    
+    keyboard.on_press_key('d', yaw_right)
+    keyboard.on_press_key('a', yaw_left)
+    keyboard.on_release_key('d', yaw_neutral)
+    keyboard.on_release_key('a', yaw_neutral)
 
     print("Initializing drivers")
 
@@ -94,9 +116,14 @@ if __name__ == '__main__':
         print("Starting control")
         
         while not keyboard.is_pressed('q'):
-            scf.cf.commander.send_setpoint(0, 0, 0, thrust)
+            scf.cf.commander.send_setpoint(0, 0, yaw_rate, thrust)
             print(f"Thrust is {thrust}, isconnected: {scf.cf.is_connected()}")
             time.sleep(0.02)
+
+            
+        for i in range(15):
+            scf.cf.commander.send_setpoint(0, 0, 0, 0)
+            time.sleep(0.2)
 
             
     keyboard.unhook_all()
